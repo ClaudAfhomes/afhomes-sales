@@ -1,0 +1,3 @@
+# Security
+
+Passwords and activation codes use Argon2. Activation codes are single-use, attempt-limited and time-limited; only their hashes persist. JWT access tokens are short-lived. Production completion requires refresh-token rotation, guards on every protected endpoint, rate limiting, session/device revocation, immutable audit coverage, CSP review, and step-up transaction authorization. Printed QR and NFC values are opaque identifiers, never authorization by themselves. Secrets belong only in local/Vercel environment variables. Dev inbox and NFC simulation must remain disabled outside development.

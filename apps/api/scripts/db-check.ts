@@ -1,0 +1,2 @@
+import mongoose from 'mongoose'; import {connect,close} from './db';
+async function main(){const models=await connect();const counts=Object.fromEntries(await Promise.all(Object.entries(models).map(async([n,m])=>[n,await m.countDocuments()])));console.log(JSON.stringify({database:mongoose.connection.name,state:'connected',counts},null,2));await close()}main().catch(e=>{console.error(e.message);process.exit(1)});

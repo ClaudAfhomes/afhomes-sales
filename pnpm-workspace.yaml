@@ -1,0 +1,10 @@
+packages:
+  - apps/api
+  - apps/web
+  - packages/*
+allowBuilds:
+  '@parcel/watcher': true
+  '@scarf/scarf': true
+  argon2: true
+  esbuild: true
+  unrs-resolver: true

@@ -1,0 +1,12 @@
+import * as argon2 from 'argon2'; import {writeFileSync} from 'node:fs'; import {resolve} from 'node:path'; import {connect,close} from './db';
+async function main(){const m=await connect();const password=process.env.SEED_ADMIN_PASSWORD||`Dev-${crypto.randomUUID()}!`;const hash=await argon2.hash(password);
+ await m.Country.updateOne({code:'PH'},{$set:{name:'Philippines',default_currency_code:'PHP',default_locale:'en-PH'}},{upsert:true});
+ await m.Currency.updateOne({code:'PHP'},{$set:{name:'Philippine Peso',minor_units:2}},{upsert:true});
+ for(const [i,name] of ['Makati','Cebu','Davao'].entries())await m.Branch.updateOne({branch_public_id:`BR-PH-000${i+1}`},{$set:{name,country_code:'PH',currency_code:'PHP',timezone:'Asia/Manila',is_active:true}},{upsert:true});
+ for(const [i,name] of ['Bronze','Silver','Gold','Super Bronze','Super Silver','Super Gold'].entries()){const tier_code=name.toUpperCase().replace(' ','_');await m.Tier.updateOne({tier_code},{$set:{name,rank:i+1,duration_value:1,duration_unit:'YEAR',is_active:true}},{upsert:true})}
+ await m.Benefit.updateOne({benefit_code:'WELCOME'},{$set:{name:'Welcome privilege',tier_codes:['BRONZE','SILVER','GOLD'],is_active:true}},{upsert:true});
+ await m.User.updateOne({email_normalized:'admin@afhomes.test'},{$set:{public_id:'EMP-PH-00000001',display_name:'Development Super Admin',password_hash:hash,roles:['SUPER_ADMIN'],is_verified:true,is_active:true}},{upsert:true});
+ await m.User.updateOne({email_normalized:'customer@afhomes.test'},{$set:{public_id:'CUS-PH-00000001',display_name:'Sample Customer',password_hash:hash,roles:['CUSTOMER'],is_verified:true,is_active:true}},{upsert:true});
+ for(let i=1;i<=5;i++)await m.VipCard.updateOne({card_public_id:`CARD-PH-${String(i).padStart(8,'0')}`},{$set:{printed_qr_token:`qr_dev_${i}`,nfc_token:`nfc_dev_${i}`,member_code:`AFH-DEMO-${String(i).padStart(2,'0')}`,status:'IN_STOCK',is_blocked:false,activation_attempts:0,activation_used:false}},{upsert:true});
+ const credentials=`ADMIN_EMAIL=admin@afhomes.test\nCUSTOMER_EMAIL=customer@afhomes.test\nPASSWORD=${password}\n`;writeFileSync(resolve(process.cwd(),'../../.dev-credentials.local.txt'),credentials,{encoding:'utf8',mode:0o600});console.log('Seed complete. Development credentials saved to the ignored .dev-credentials.local.txt file.');await close()}
+main().catch(e=>{console.error(e);process.exit(1)});
