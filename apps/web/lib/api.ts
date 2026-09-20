@@ -1,1 +1,1 @@
-export const API=process.env.NEXT_PUBLIC_API_URL||'http://localhost:3001'; export async function api<T>(path:string):Promise<T|null>{try{const r=await fetch(`${API}${path}`,{next:{revalidate:15}});if(!r.ok)return null;return await r.json() as T}catch{return null}}
+export const API=process.env.NEXT_PUBLIC_API_URL||'http://localhost:3001'; export async function api<T>(path:string):Promise<T|null>{try{const r=await fetch(`${API}${path}`,{next:{revalidate:15},signal:AbortSignal.timeout(3000)});if(!r.ok)return null;return await r.json() as T}catch{return null}}
