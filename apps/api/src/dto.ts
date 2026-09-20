@@ -1,4 +1,4 @@
-import {ArrayMinSize,IsArray,IsEmail,IsIn,IsInt,IsNotEmpty,IsPositive,IsString,Length,Min,ValidateNested} from 'class-validator'; import {Type} from 'class-transformer';
+import {ArrayMinSize,IsArray,IsEmail,IsIn,IsInt,IsPositive,IsString,Length,Min,ValidateNested} from 'class-validator'; import {Type} from 'class-transformer';
 export class LoginDto{@IsEmail() email!:string;@IsString() @Length(8,128) password!:string}
 export class SellCardDto{@IsString() card_public_id!:string;@IsString() tier_code!:string}
 export class ActivateCardDto{@IsString() card_identifier!:string;@IsString() activation_code!:string;@IsString() customer_id!:string}

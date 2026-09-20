@@ -1,1 +1,9 @@
-import eslint from '@eslint/js'; export default [eslint.configs.recommended,{files:['**/*.ts'],rules:{'no-undef':'off'}}];
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  { ignores: ['dist/**'] },
+  { files: ['**/*.ts'], rules: { '@typescript-eslint/no-explicit-any': 'off' } },
+);
