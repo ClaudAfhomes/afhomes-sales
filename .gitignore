@@ -12,3 +12,4 @@ build/
 *.apk
 .dev-credentials.local.txt
 *.log
+*.tsbuildinfo
