@@ -1,9 +1,10 @@
-import {BadRequestException} from '@nestjs/common';
+import {BadRequestException,NotFoundException} from '@nestjs/common';
 import * as argon2 from 'argon2';
 import {BusinessService} from '../src/business.service';
 
 const model = () => ({
   findOne: jest.fn(),
+  find: jest.fn(),
   exists: jest.fn(),
   create: jest.fn(),
 });
@@ -30,7 +31,7 @@ function service() {
     empty as never,
     empty as never,
   );
-  return {instance, cards, tiers, memberships};
+  return {instance, cards, tiers, memberships, empty};
 }
 
 describe('VIP card entitlement and ownership', () => {
@@ -85,5 +86,12 @@ describe('VIP card entitlement and ownership', () => {
     await instance.activate({card_identifier: 'CARD-1', activation_code: activationCode, customer_id: 'CUS-B'} as never, 'CUS-A');
     expect(memberships.create).toHaveBeenCalledWith(expect.objectContaining({customer_id: 'CUS-A'}));
     expect(card.customer_id).toBe('CUS-A');
+  });
+
+  it('does not disclose Customer B support tickets to Customer A', async () => {
+    const {instance, empty} = service();
+    empty.findOne.mockReturnValue({lean: jest.fn().mockResolvedValue({ticket_public_id:'CS-1',customer_id:'CUS-B'})});
+    await expect(instance.ticketDetails('CS-1',{sub:'CUS-A',roles:['CUSTOMER']})).rejects.toBeInstanceOf(NotFoundException);
+    expect(empty.find).not.toHaveBeenCalled();
   });
 });

@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.5.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Start MongoDB replica set
+        run: |
+          docker run -d --name afhomes-mongo -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          for i in {1..30}; do docker exec afhomes-mongo mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'127.0.0.1:27017'}]})" && break || sleep 2; done
+          docker exec afhomes-mongo mongosh --quiet --eval "db.adminCommand({ping:1})"
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+        env:
+          TEST_MONGODB_URI: mongodb://127.0.0.1:27017/afhomes_test?replicaSet=rs0
+          JWT_ACCESS_SECRET: ci-access-secret-at-least-32-characters
+          JWT_REFRESH_SECRET: ci-refresh-secret-at-least-32-characters
+      - run: pnpm --filter @afhomes/api build
+      - run: pnpm --filter @afhomes/web build

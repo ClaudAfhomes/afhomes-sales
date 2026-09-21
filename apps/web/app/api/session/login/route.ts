@@ -20,5 +20,12 @@ export async function POST(request: NextRequest) {
     path: '/',
     maxAge: 15 * 60,
   });
+  response.cookies.set('afhomes_refresh', payload.refresh_token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    path: '/',
+    maxAge: 30 * 24 * 60 * 60,
+  });
   return response;
 }
