@@ -13,3 +13,6 @@ export class CreateTransactionDto{@IsString() idempotency_key!:string;@IsString(
 export class ReverseTransactionDto{@IsString() idempotency_key!:string;@IsString() transaction_public_id!:string}
 export class CreateTicketDto{@IsString() @Length(3,160) subject!:string;@IsString() @Length(1,4000) message!:string}
 export class ReplyTicketDto{@IsString() @Length(1,4000) message!:string;@IsOptional() @IsBoolean() is_internal?:boolean}
+export class CardActionDto{@IsString() card_public_id!:string;@IsString() @Length(3,500) reason!:string}
+export class ReplaceCardDto{@IsString() old_card_public_id!:string;@IsString() new_card_public_id!:string;@IsString() @Length(3,500) reason!:string}
+export class UpdateTicketDto{@IsOptional() @IsIn(['OPEN','IN_PROGRESS','WAITING_CUSTOMER','RESOLVED','CLOSED']) status?:string;@IsOptional() @IsIn(['LOW','NORMAL','HIGH','URGENT']) priority?:string;@IsOptional() @IsString() assigned_to?:string}

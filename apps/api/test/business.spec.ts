@@ -94,4 +94,11 @@ describe('VIP card entitlement and ownership', () => {
     await expect(instance.ticketDetails('CS-1',{sub:'CUS-A',roles:['CUSTOMER']})).rejects.toBeInstanceOf(NotFoundException);
     expect(empty.find).not.toHaveBeenCalled();
   });
+
+  it('scopes lost-card reports to the authenticated customer', async () => {
+    const {instance, cards} = service();
+    cards.findOne.mockResolvedValue(null);
+    await expect(instance.reportLostCard({card_public_id:'CARD-B',reason:'Lost'},'CUS-A')).rejects.toBeInstanceOf(NotFoundException);
+    expect(cards.findOne).toHaveBeenCalledWith({card_public_id:'CARD-B',customer_id:'CUS-A'});
+  });
 });
