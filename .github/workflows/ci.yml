@@ -52,3 +52,23 @@ jobs:
         working-directory: apps/${{ matrix.app }}
       - run: flutter test
         working-directory: apps/${{ matrix.app }}
+
+  expo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        app: [customer-expo, staff-expo]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/${{ matrix.app }}/package-lock.json
+      - run: npm ci
+        working-directory: apps/${{ matrix.app }}
+      - run: npm run typecheck
+        working-directory: apps/${{ matrix.app }}
+      - run: npx expo export --platform android
+        working-directory: apps/${{ matrix.app }}
