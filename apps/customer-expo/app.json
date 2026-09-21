@@ -24,7 +24,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      ["expo-camera", {"cameraPermission": "Allow AFhomes VIP to scan card activation QR codes."}]
     ]
   }
 }
