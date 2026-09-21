@@ -254,13 +254,13 @@ importers:
   apps/web:
     dependencies:
       next:
-        specifier: ^15.5.3
+        specifier: 15.5.25
         version: 15.5.25(@babel/core@7.29.7(supports-color@8.1.1))(@types/node@24.13.6)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react:
-        specifier: ^19.1.1
+        specifier: 19.3.0
         version: 19.3.0
       react-dom:
-        specifier: ^19.1.1
+        specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
     devDependencies:
       '@eslint/eslintrc':
@@ -279,7 +279,7 @@ importers:
         specifier: ^9.35.0
         version: 9.39.5(supports-color@8.1.1)
       eslint-config-next:
-        specifier: ^15.5.3
+        specifier: 15.5.25
         version: 15.5.25(eslint@9.39.5(supports-color@8.1.1))(supports-color@8.1.1)(typescript@5.9.3)
       typescript:
         specifier: ^5.9.2
