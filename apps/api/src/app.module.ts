@@ -3,6 +3,7 @@ const modelDefs=Object.entries(models.schemas).map(([name,schema])=>({name,schem
 const hosted=Boolean(process.env.VERCEL)||['production','preview'].includes((process.env.APP_ENV||process.env.NODE_ENV||'development').toLowerCase());
 if(hosted&&!process.env.JWT_ACCESS_SECRET)throw new Error('JWT_ACCESS_SECRET is required in hosted environments');
 if(hosted&&!process.env.JWT_REFRESH_SECRET)throw new Error('JWT_REFRESH_SECRET is required in hosted environments');
+if(hosted&&!process.env.DYNAMIC_QR_SECRET)throw new Error('DYNAMIC_QR_SECRET is required in hosted environments');
 if(hosted&&process.env.ENABLE_DEV_INBOX==='true')throw new Error('ENABLE_DEV_INBOX must not be enabled in hosted environments');
 const jwtSecret=process.env.JWT_ACCESS_SECRET||'development-only-secret-change-me-123456';
 @Module({imports:[ConfigModule.forRoot({isGlobal:true}),MongooseModule.forRoot(process.env.MONGODB_URI||'mongodb://127.0.0.1:27017/afhomes_sales_dev',{serverSelectionTimeoutMS:5000}),MongooseModule.forFeature(modelDefs),JwtModule.register({global:true,secret:jwtSecret})],controllers:[AppController],providers:[AuthService,BusinessService,{provide:APP_GUARD,useClass:JwtAuthGuard},{provide:APP_GUARD,useClass:RolesGuard},{provide:APP_GUARD,useClass:RateLimitGuard}]}) export class AppModule{}

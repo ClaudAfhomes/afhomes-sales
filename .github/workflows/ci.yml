@@ -34,25 +34,6 @@ jobs:
       - run: pnpm --filter @afhomes/api build
       - run: pnpm --filter @afhomes/web build
 
-  mobile:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    strategy:
-      matrix:
-        app: [customer-mobile, staff-mobile]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-      - run: flutter pub get
-        working-directory: apps/${{ matrix.app }}
-      - run: flutter analyze
-        working-directory: apps/${{ matrix.app }}
-      - run: flutter test
-        working-directory: apps/${{ matrix.app }}
-
   expo:
     runs-on: ubuntu-latest
     timeout-minutes: 20

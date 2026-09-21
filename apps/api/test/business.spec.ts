@@ -30,6 +30,7 @@ function service() {
     empty as never,
     empty as never,
     empty as never,
+    empty as never,
   );
   return {instance, cards, tiers, memberships, empty};
 }
@@ -49,6 +50,7 @@ describe('VIP card entitlement and ownership', () => {
     };
     cards.findOne.mockResolvedValue(card);
     tiers.exists.mockResolvedValue(true);
+    tiers.findOne.mockReturnValue({lean:jest.fn().mockResolvedValue({tier_code:tierCode,duration_value:tierCode==='GOLD'?2:3,duration_unit:tierCode==='GOLD'?'DAY':'MONTH'})});
     memberships.create.mockImplementation(async (value) => value);
 
     const sale = await instance.sell({card_public_id: 'CARD-1', tier_code: tierCode}, 'EMP-1');
@@ -60,6 +62,8 @@ describe('VIP card entitlement and ownership', () => {
     await instance.activate({card_identifier: 'QR-1', activation_code: sale.activation_code}, 'CUS-A');
 
     expect(memberships.create).toHaveBeenCalledWith(expect.objectContaining({customer_id: 'CUS-A', tier_code: tierCode}));
+    const created=memberships.create.mock.calls[0][0] as {starts_at:Date;ends_at:Date};
+    expect(created.ends_at.getTime()).toBeGreaterThan(created.starts_at.getTime()+(tierCode==='GOLD'?1:80)*24*3600_000);
     expect(card.customer_id).toBe('CUS-A');
   });
 
@@ -81,6 +85,7 @@ describe('VIP card entitlement and ownership', () => {
     };
     cards.findOne.mockResolvedValue(card);
     tiers.exists.mockResolvedValue(true);
+    tiers.findOne.mockReturnValue({lean:jest.fn().mockResolvedValue({tier_code:'GOLD',duration_value:1,duration_unit:'YEAR'})});
     memberships.create.mockImplementation(async (value) => value);
 
     await instance.activate({card_identifier: 'CARD-1', activation_code: activationCode, customer_id: 'CUS-B'} as never, 'CUS-A');

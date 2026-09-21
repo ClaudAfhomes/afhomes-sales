@@ -1,6 +1,6 @@
 # AFhomes Sales
 
-Development MVP for VIP memberships, physical cards, loyalty points, POS transactions, support, reporting, notifications, audit and security workflows. It is a pnpm monorepo with a NestJS/Mongoose API, Next.js operations portal, and customer/staff clients for Expo and Flutter.
+Development MVP for VIP memberships, physical cards, loyalty points, POS transactions, support, reporting, notifications, audit and security workflows. It is a pnpm monorepo with a NestJS/Mongoose API, Next.js operations portal, and customer/staff Expo clients.
 
 ## Start locally
 
@@ -23,11 +23,7 @@ The seed is idempotent and writes generated development login details to ignored
 
 The customer app supports registration, verification, login, membership activation and a digital member QR. The staff app supports employee login, camera QR lookup and transaction submission. Both default to the deployed AFhomes API; set `EXPO_PUBLIC_API_URL` before starting to target another API.
 
-Expo Go can preview the camera QR flow. NFC requires a custom development build because it needs native code outside Expo Go.
-
-### Flutter
-
-From either Flutter app: `flutter pub get`, then `flutter run --dart-define=AFHOMES_API_URL=https://your-api.example`. Build Android with `flutter build apk --debug --dart-define=AFHOMES_API_URL=...`. Generic NFC is represented by the shared `nfc_token`; native scanner integration remains an adapter boundary.
+Expo Go can preview customer registration and dynamic QR plus staff camera scanning. Staff NFC uses the native Expo Development Build: run `npm --prefix apps/staff-expo run dev:build:android`, install the resulting APK, then start Metro with `npm run expo:staff`. The retired Flutter sources are preserved under `archive/flutter/` and are no longer built by CI.
 
 ## Quality and deployment
 

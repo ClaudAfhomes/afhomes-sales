@@ -25,7 +25,8 @@
     },
     "plugins": [
       "expo-secure-store",
-      ["expo-camera", {"cameraPermission": "Allow AFhomes Staff POS to scan VIP card QR codes."}]
+      ["expo-camera", {"cameraPermission": "Allow AFhomes Staff POS to scan VIP card QR codes."}],
+      ["react-native-nfc-manager", {"nfcPermission": "Allow AFhomes Staff POS to read VIP membership cards."}]
     ]
   }
 }
