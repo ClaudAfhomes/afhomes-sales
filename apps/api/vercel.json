@@ -1,1 +1,1 @@
-{"version":2,"builds":[{"src":"src/main.ts","use":"@vercel/node"}],"routes":[{"src":"/(.*)","dest":"src/main.ts"}]}
+{"version":2,"builds":[{"src":"src/main.ts","use":"@vercel/node"}],"routes":[{"src":"/(.*)","dest":"src/main.ts"}],"crons":[{"path":"/api/v1/automation/daily","schedule":"0 16 * * *"}]}

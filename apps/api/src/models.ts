@@ -18,7 +18,7 @@ export class PointsLedger{ledger_public_id!:string;membership_id!:string;transac
 export class AuditLog{actor_id!:string;action!:string;entity_type!:string;entity_id!:string;request_id!:string;metadata!:Record<string,unknown>}
 export class SupportTicketHeader{ticket_public_id!:string;customer_id!:string;status!:string;subject!:string;priority!:string;assigned_to?:string;closed_at?:Date}
 export class SupportTicketMessage{ticket_id!:string;author_id!:string;body!:string;is_internal!:boolean}
-export class Notification{recipient_id!:string;channel!:string;category!:string;title!:string;message!:string;status!:string;read_at?:Date;sent_at?:Date}
+export class Notification{event_key?:string;recipient_id!:string;channel!:string;category!:string;title!:string;message!:string;status!:string;read_at?:Date;sent_at?:Date}
 export const schemas={
  Country:s({code:{type:String,required:true,unique:true,index:true},name:{type:String,required:true},default_currency_code:{type:String,required:true},default_locale:{type:String,required:true}}),
  Currency:s({code:{type:String,required:true,unique:true},name:{type:String,required:true},minor_units:{type:Number,required:true}}),
@@ -37,5 +37,5 @@ export const schemas={
  AuditLog:s({actor_id:{type:String,index:true},action:{type:String,required:true},entity_type:{type:String,required:true},entity_id:{type:String,required:true},request_id:{type:String,required:true},metadata:{type:Schema.Types.Mixed,default:{}}}),
  SupportTicketHeader:s({ticket_public_id:{type:String,required:true,unique:true,index:true},customer_id:{type:String,required:true,index:true},status:{type:String,required:true,index:true},subject:{type:String,required:true},priority:{type:String,required:true},assigned_to:String,closed_at:Date}),
  SupportTicketMessage:s({ticket_id:{type:String,required:true,index:true},author_id:{type:String,required:true},body:{type:String,required:true},is_internal:{type:Boolean,default:false}}),
- Notification:s({recipient_id:{type:String,required:true,index:true},channel:{type:String,required:true},category:{type:String,required:true},title:{type:String,required:true},message:{type:String,required:true},status:{type:String,default:'PENDING'},read_at:Date,sent_at:Date})
+ Notification:s({event_key:{type:String,unique:true,sparse:true,index:true},recipient_id:{type:String,required:true,index:true},channel:{type:String,required:true},category:{type:String,required:true},title:{type:String,required:true},message:{type:String,required:true},status:{type:String,default:'PENDING'},read_at:Date,sent_at:Date})
 };
