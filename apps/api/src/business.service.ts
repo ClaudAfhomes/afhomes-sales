@@ -487,6 +487,22 @@ export class BusinessService {
       rule?.step_up_amount_minor && amountMinor >= rule.step_up_amount_minor,
     );
   }
+  private async transactionResult(header: TransactionHeader) {
+    const [transactionItems, membership] = await Promise.all([
+      this.items
+        .find({ transaction_id: header.transaction_public_id })
+        .sort({ line_no: 1 })
+        .lean(),
+      this.memberships
+        .findOne({ membership_public_id: header.membership_id })
+        .lean(),
+    ]);
+    return {
+      ...header,
+      items: transactionItems,
+      balance: membership?.points_balance,
+    };
+  }
   async transact(d: CreateTransactionDto, actorInput: AuthenticatedUser | string) {
     const actor: AuthenticatedUser = typeof actorInput === "string"
       ? { sub: actorInput, roles: ["SUPER_ADMIN"] }
@@ -494,7 +510,7 @@ export class BusinessService {
     const existing = await this.tx
       .findOne({ idempotency_key: d.idempotency_key })
       .lean();
-    if (existing) return existing;
+    if (existing) return this.transactionResult(existing);
     await this.assertBranchAccess(actor, d.branch_id);
     const session = await this.db.startSession();
     let usedDynamicQr = false;
@@ -745,7 +761,7 @@ export class BusinessService {
         const original = await this.tx
           .findOne({ idempotency_key: d.idempotency_key })
           .lean();
-        if (original) return original;
+        if (original) return this.transactionResult(original);
         if (usedDynamicQr)
           throw new ConflictException("Dynamic QR has already been used");
       }
