@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#FCFBF8",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.afhomes.vip"
@@ -13,7 +14,7 @@
     "android": {
       "package": "com.afhomes.vip",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#23472B",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"

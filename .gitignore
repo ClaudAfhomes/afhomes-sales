@@ -14,3 +14,5 @@ build/
 *.log
 *.tsbuildinfo
 .tools/
+.reference-afhomes/
+**/dist-android/
