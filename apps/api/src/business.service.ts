@@ -22,9 +22,7 @@ import {
   ReverseTransactionDto,
   SellCardDto,
   UpdateTicketDto,
-  UpdateEmployeeDto,
   UpsertProductDto,
-  UpsertRewardRuleDto,
   UpsertTierDto,
 } from "./dto";
 import type { AuthenticatedUser } from "./auth.decorators";
