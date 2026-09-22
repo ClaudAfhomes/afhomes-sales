@@ -1,39 +1,350 @@
-import {BadRequestException,ConflictException,Injectable,UnauthorizedException} from '@nestjs/common';
-import {InjectModel} from '@nestjs/mongoose';
-import {JwtService} from '@nestjs/jwt';
-import {Model} from 'mongoose';
-import * as argon2 from 'argon2';
-import {createHash,randomInt,randomUUID} from 'node:crypto';
-import {AuthSession,SecurityEvent,User,VerificationChallenge} from './models';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { JwtService } from "@nestjs/jwt";
+import { Model } from "mongoose";
+import * as argon2 from "argon2";
+import { createHash, randomInt, randomUUID } from "node:crypto";
+import {
+  AuthSession,
+  SecurityEvent,
+  TransactionAuthorization,
+  User,
+  VerificationChallenge,
+} from "./models";
 
-type ClientContext={device_name?:string;user_agent?:string;ip_address?:string};
-const id=(prefix:string)=>`${prefix}-PH-${randomUUID().replaceAll('-','').slice(0,16).toUpperCase()}`;
-const normalize=(email:string)=>email.trim().toLowerCase();
-const tokenHash=(token:string)=>createHash('sha256').update(token).digest('hex');
+type ClientContext = {
+  device_name?: string;
+  user_agent?: string;
+  ip_address?: string;
+};
+const id = (prefix: string) =>
+  `${prefix}-PH-${randomUUID().replaceAll("-", "").slice(0, 16).toUpperCase()}`;
+const normalize = (email: string) => email.trim().toLowerCase();
+const tokenHash = (token: string) =>
+  createHash("sha256").update(token).digest("hex");
 
 @Injectable()
-export class AuthService{
- constructor(@InjectModel(User.name)private users:Model<User>,@InjectModel(AuthSession.name)private sessions:Model<AuthSession>,@InjectModel(VerificationChallenge.name)private challenges:Model<VerificationChallenge>,@InjectModel(SecurityEvent.name)private securityEvents:Model<SecurityEvent>,private jwt:JwtService){}
+export class AuthService {
+  constructor(
+    @InjectModel(User.name) private users: Model<User>,
+    @InjectModel(AuthSession.name) private sessions: Model<AuthSession>,
+    @InjectModel(VerificationChallenge.name)
+    private challenges: Model<VerificationChallenge>,
+    @InjectModel(SecurityEvent.name)
+    private securityEvents: Model<SecurityEvent>,
+    @InjectModel(TransactionAuthorization.name)
+    private transactionAuthorizations: Model<TransactionAuthorization>,
+    private jwt: JwtService,
+  ) {}
 
- async register(email:string,displayName:string,password:string,context:ClientContext={}){const email_normalized=normalize(email);if(await this.users.exists({email_normalized}))throw new ConflictException('Account already exists');const user=await this.users.create({public_id:id('CUS'),email_normalized,display_name:displayName.trim(),password_hash:await argon2.hash(password,{type:argon2.argon2id}),roles:['CUSTOMER'],is_verified:false,is_active:true});const code=await this.issueChallenge(user.public_id,'EMAIL_VERIFY');return{user:{public_id:user.public_id,email:user.email_normalized,display_name:user.display_name,is_verified:false},verification_required:true,...this.devCode(code),device_name:context.device_name}}
+  async register(
+    email: string,
+    displayName: string,
+    password: string,
+    context: ClientContext = {},
+  ) {
+    const email_normalized = normalize(email);
+    if (await this.users.exists({ email_normalized }))
+      throw new ConflictException("Account already exists");
+    const user = await this.users.create({
+      public_id: id("CUS"),
+      email_normalized,
+      display_name: displayName.trim(),
+      password_hash: await argon2.hash(password, { type: argon2.argon2id }),
+      roles: ["CUSTOMER"],
+      is_verified: false,
+      is_active: true,
+    });
+    const code = await this.issueChallenge(user.public_id, "EMAIL_VERIFY");
+    return {
+      user: {
+        public_id: user.public_id,
+        email: user.email_normalized,
+        display_name: user.display_name,
+        is_verified: false,
+      },
+      verification_required: true,
+      ...this.devCode(code),
+      device_name: context.device_name,
+    };
+  }
 
- async verifyEmail(email:string,code:string,context:ClientContext={}){const user=await this.users.findOne({email_normalized:normalize(email),is_active:true});if(!user)throw new BadRequestException('Invalid or expired verification code');await this.consumeChallenge(user.public_id,'EMAIL_VERIFY',code);user.is_verified=true;await user.save();return this.createSession(user,context)}
+  async verifyEmail(email: string, code: string, context: ClientContext = {}) {
+    const user = await this.users.findOne({
+      email_normalized: normalize(email),
+      is_active: true,
+    });
+    if (!user)
+      throw new BadRequestException("Invalid or expired verification code");
+    await this.consumeChallenge(user.public_id, "EMAIL_VERIFY", code);
+    user.is_verified = true;
+    await user.save();
+    return this.createSession(user, context);
+  }
 
- async login(email:string,password:string,context:ClientContext={}){const user=await this.users.findOne({email_normalized:normalize(email),is_active:true});if(!user||!await argon2.verify(user.password_hash,password)){await this.securityEvents.create({event_public_id:id('SEC'),actor_id:user?.public_id,event_type:'LOGIN_FAILED',severity:'MEDIUM',ip_address:context.ip_address,metadata:{email:normalize(email)}});throw new UnauthorizedException('Invalid credentials')}if(!user.is_verified)throw new UnauthorizedException('Email verification required');return this.createSession(user,context)}
+  async login(email: string, password: string, context: ClientContext = {}) {
+    const user = await this.users.findOne({
+      email_normalized: normalize(email),
+      is_active: true,
+    });
+    if (!user || !(await argon2.verify(user.password_hash, password))) {
+      await this.securityEvents.create({
+        event_public_id: id("SEC"),
+        actor_id: user?.public_id,
+        event_type: "LOGIN_FAILED",
+        severity: "MEDIUM",
+        ip_address: context.ip_address,
+        metadata: { email: normalize(email) },
+      });
+      throw new UnauthorizedException("Invalid credentials");
+    }
+    if (!user.is_verified)
+      throw new UnauthorizedException("Email verification required");
+    return this.createSession(user, context);
+  }
 
- async refresh(refreshToken:string,context:ClientContext={}){let claims:{sub:string;sid:string;family:string;type:string};try{claims=await this.jwt.verifyAsync(refreshToken,{secret:this.refreshSecret()})}catch{throw new UnauthorizedException('Refresh token is invalid or expired')}if(claims.type!=='refresh')throw new UnauthorizedException('Refresh token is invalid');const session=await this.sessions.findOne({session_public_id:claims.sid,user_id:claims.sub});if(!session||session.refresh_token_hash!==tokenHash(refreshToken)||session.revoked_at||session.expires_at<=new Date()){if(session)await this.revokeFamily(session.token_family,'REFRESH_TOKEN_REUSE',context);throw new UnauthorizedException('Refresh token is invalid or expired')}const user=await this.users.findOne({public_id:claims.sub,is_active:true,is_verified:true});if(!user)throw new UnauthorizedException('Account is unavailable');session.revoked_at=new Date();const replacementId=id('SES');session.replaced_by=replacementId;await session.save();return this.createSession(user,{...context,device_name:context.device_name||session.device_name},claims.family,replacementId)}
+  async refresh(refreshToken: string, context: ClientContext = {}) {
+    let claims: { sub: string; sid: string; family: string; type: string };
+    try {
+      claims = await this.jwt.verifyAsync(refreshToken, {
+        secret: this.refreshSecret(),
+      });
+    } catch {
+      throw new UnauthorizedException("Refresh token is invalid or expired");
+    }
+    if (claims.type !== "refresh")
+      throw new UnauthorizedException("Refresh token is invalid");
+    const session = await this.sessions.findOne({
+      session_public_id: claims.sid,
+      user_id: claims.sub,
+    });
+    if (
+      !session ||
+      session.refresh_token_hash !== tokenHash(refreshToken) ||
+      session.revoked_at ||
+      session.expires_at <= new Date()
+    ) {
+      if (session)
+        await this.revokeFamily(
+          session.token_family,
+          "REFRESH_TOKEN_REUSE",
+          context,
+        );
+      throw new UnauthorizedException("Refresh token is invalid or expired");
+    }
+    const user = await this.users.findOne({
+      public_id: claims.sub,
+      is_active: true,
+      is_verified: true,
+    });
+    if (!user) throw new UnauthorizedException("Account is unavailable");
+    session.revoked_at = new Date();
+    const replacementId = id("SES");
+    session.replaced_by = replacementId;
+    await session.save();
+    return this.createSession(
+      user,
+      { ...context, device_name: context.device_name || session.device_name },
+      claims.family,
+      replacementId,
+    );
+  }
 
- async logout(refreshToken:string){const session=await this.sessionFromToken(refreshToken);if(session&&!session.revoked_at){session.revoked_at=new Date();await session.save()}return{success:true}}
- async logoutAll(userId:string){await this.sessions.updateMany({user_id:userId,revoked_at:{$exists:false}},{$set:{revoked_at:new Date()}});return{success:true}}
+  async logout(refreshToken: string) {
+    const session = await this.sessionFromToken(refreshToken);
+    if (session && !session.revoked_at) {
+      session.revoked_at = new Date();
+      await session.save();
+    }
+    return { success: true };
+  }
+  async logoutAll(userId: string) {
+    await this.sessions.updateMany(
+      { user_id: userId, revoked_at: { $exists: false } },
+      { $set: { revoked_at: new Date() } },
+    );
+    return { success: true };
+  }
 
- async forgotPassword(email:string){const user=await this.users.findOne({email_normalized:normalize(email),is_active:true});let code:string|undefined;if(user)code=await this.issueChallenge(user.public_id,'PASSWORD_RESET');return{success:true,...this.devCode(code)}}
- async resetPassword(email:string,code:string,newPassword:string){const user=await this.users.findOne({email_normalized:normalize(email),is_active:true});if(!user)throw new BadRequestException('Invalid or expired reset code');await this.consumeChallenge(user.public_id,'PASSWORD_RESET',code);user.password_hash=await argon2.hash(newPassword,{type:argon2.argon2id});await user.save();await this.sessions.updateMany({user_id:user.public_id,revoked_at:{$exists:false}},{$set:{revoked_at:new Date()}});return{success:true}}
+  async forgotPassword(email: string) {
+    const user = await this.users.findOne({
+      email_normalized: normalize(email),
+      is_active: true,
+    });
+    let code: string | undefined;
+    if (user)
+      code = await this.issueChallenge(user.public_id, "PASSWORD_RESET");
+    return { success: true, ...this.devCode(code) };
+  }
+  async resetPassword(email: string, code: string, newPassword: string) {
+    const user = await this.users.findOne({
+      email_normalized: normalize(email),
+      is_active: true,
+    });
+    if (!user) throw new BadRequestException("Invalid or expired reset code");
+    await this.consumeChallenge(user.public_id, "PASSWORD_RESET", code);
+    user.password_hash = await argon2.hash(newPassword, {
+      type: argon2.argon2id,
+    });
+    await user.save();
+    await this.sessions.updateMany(
+      { user_id: user.public_id, revoked_at: { $exists: false } },
+      { $set: { revoked_at: new Date() } },
+    );
+    return { success: true };
+  }
+  async stepUp(userId: string, intent: { password: string; membership_id: string; branch_id: string; points_redeemed: number; currency_code: string; transaction_type: string }) {
+    const user = await this.users.findOne({
+      public_id: userId,
+      is_active: true,
+      is_verified: true,
+    });
+    if (!user || !user.roles.includes("CUSTOMER") || !(await argon2.verify(user.password_hash, intent.password)))
+      throw new UnauthorizedException("Password confirmation failed");
+    const token = randomUUID();
+    await this.transactionAuthorizations.create({
+      authorization_public_id: id("AUTHZ"),
+      token_hash: tokenHash(token),
+      customer_id: user.public_id,
+      membership_id: intent.membership_id,
+      branch_id: intent.branch_id,
+      points_redeemed: intent.points_redeemed,
+      currency_code: intent.currency_code,
+      transaction_type: intent.transaction_type,
+      status: "APPROVED",
+      expires_at: new Date(Date.now() + 5 * 60_000),
+    });
+    return {
+      step_up_token: token,
+      expires_in: 300,
+    };
+  }
 
- private async createSession(user:User,context:ClientContext,family=id('FAM'),sessionId=id('SES')){const refreshToken=await this.jwt.signAsync({sub:user.public_id,roles:user.roles,sid:sessionId,family,type:'refresh',jti:randomUUID()},{secret:this.refreshSecret(),expiresIn:'30d'});await this.sessions.create({session_public_id:sessionId,user_id:user.public_id,refresh_token_hash:tokenHash(refreshToken),token_family:family,device_name:context.device_name,user_agent:context.user_agent,ip_address:context.ip_address,expires_at:new Date(Date.now()+30*24*3600_000),last_used_at:new Date()});return{access_token:await this.jwt.signAsync({sub:user.public_id,roles:user.roles,type:'access'},{secret:process.env.JWT_ACCESS_SECRET,expiresIn:'15m'}),refresh_token:refreshToken,user:{public_id:user.public_id,display_name:user.display_name,roles:user.roles}}}
- private async issueChallenge(userId:string,purpose:string){await this.challenges.updateMany({user_id:userId,purpose,used_at:{$exists:false}},{$set:{used_at:new Date()}});const code=String(randomInt(100000,1000000));await this.challenges.create({challenge_public_id:id('OTP'),user_id:userId,purpose,code_hash:await argon2.hash(code,{type:argon2.argon2id}),expires_at:new Date(Date.now()+10*60_000),attempts:0});return code}
- private async consumeChallenge(userId:string,purpose:string,code:string){const challenge=await this.challenges.findOne({user_id:userId,purpose,used_at:{$exists:false},expires_at:{$gt:new Date()}}).sort({created_at:-1});if(!challenge||challenge.attempts>=5)throw new BadRequestException('Invalid or expired verification code');if(!await argon2.verify(challenge.code_hash,code)){challenge.attempts++;await challenge.save();throw new BadRequestException('Invalid or expired verification code')}challenge.used_at=new Date();await challenge.save()}
- private async sessionFromToken(token:string){try{const claims=await this.jwt.verifyAsync<{sid:string;type:string}>(token,{secret:this.refreshSecret()});if(claims.type!=='refresh')return null;return this.sessions.findOne({session_public_id:claims.sid,refresh_token_hash:tokenHash(token)})}catch{return null}}
- private async revokeFamily(family:string,eventType:string,context:ClientContext){await this.sessions.updateMany({token_family:family,revoked_at:{$exists:false}},{$set:{revoked_at:new Date()}});await this.securityEvents.create({event_public_id:id('SEC'),event_type:eventType,severity:'HIGH',ip_address:context.ip_address,metadata:{token_family:family}})}
- private refreshSecret(){const secret=process.env.JWT_REFRESH_SECRET;if(!secret)throw new Error('JWT_REFRESH_SECRET is required');return secret}
- private devCode(code?:string){return process.env.ENABLE_DEV_INBOX==='true'&&code?{development_code:code}:{}}
+  private async createSession(
+    user: User,
+    context: ClientContext,
+    family = id("FAM"),
+    sessionId = id("SES"),
+  ) {
+    const refreshToken = await this.jwt.signAsync(
+      {
+        sub: user.public_id,
+        roles: user.roles,
+        sid: sessionId,
+        family,
+        type: "refresh",
+        jti: randomUUID(),
+      },
+      { secret: this.refreshSecret(), expiresIn: "30d" },
+    );
+    await this.sessions.create({
+      session_public_id: sessionId,
+      user_id: user.public_id,
+      refresh_token_hash: tokenHash(refreshToken),
+      token_family: family,
+      device_name: context.device_name,
+      user_agent: context.user_agent,
+      ip_address: context.ip_address,
+      expires_at: new Date(Date.now() + 30 * 24 * 3600_000),
+      last_used_at: new Date(),
+    });
+    return {
+      access_token: await this.jwt.signAsync(
+        { sub: user.public_id, roles: user.roles, type: "access" },
+        { secret: process.env.JWT_ACCESS_SECRET, expiresIn: "15m" },
+      ),
+      refresh_token: refreshToken,
+      user: {
+        public_id: user.public_id,
+        display_name: user.display_name,
+        roles: user.roles,
+      },
+    };
+  }
+  private async issueChallenge(userId: string, purpose: string) {
+    await this.challenges.updateMany(
+      { user_id: userId, purpose, used_at: { $exists: false } },
+      { $set: { used_at: new Date() } },
+    );
+    const code = String(randomInt(100000, 1000000));
+    await this.challenges.create({
+      challenge_public_id: id("OTP"),
+      user_id: userId,
+      purpose,
+      code_hash: await argon2.hash(code, { type: argon2.argon2id }),
+      expires_at: new Date(Date.now() + 10 * 60_000),
+      attempts: 0,
+    });
+    return code;
+  }
+  private async consumeChallenge(
+    userId: string,
+    purpose: string,
+    code: string,
+  ) {
+    const challenge = await this.challenges
+      .findOne({
+        user_id: userId,
+        purpose,
+        used_at: { $exists: false },
+        expires_at: { $gt: new Date() },
+      })
+      .sort({ created_at: -1 });
+    if (!challenge || challenge.attempts >= 5)
+      throw new BadRequestException("Invalid or expired verification code");
+    if (!(await argon2.verify(challenge.code_hash, code))) {
+      challenge.attempts++;
+      await challenge.save();
+      throw new BadRequestException("Invalid or expired verification code");
+    }
+    challenge.used_at = new Date();
+    await challenge.save();
+  }
+  private async sessionFromToken(token: string) {
+    try {
+      const claims = await this.jwt.verifyAsync<{ sid: string; type: string }>(
+        token,
+        { secret: this.refreshSecret() },
+      );
+      if (claims.type !== "refresh") return null;
+      return this.sessions.findOne({
+        session_public_id: claims.sid,
+        refresh_token_hash: tokenHash(token),
+      });
+    } catch {
+      return null;
+    }
+  }
+  private async revokeFamily(
+    family: string,
+    eventType: string,
+    context: ClientContext,
+  ) {
+    await this.sessions.updateMany(
+      { token_family: family, revoked_at: { $exists: false } },
+      { $set: { revoked_at: new Date() } },
+    );
+    await this.securityEvents.create({
+      event_public_id: id("SEC"),
+      event_type: eventType,
+      severity: "HIGH",
+      ip_address: context.ip_address,
+      metadata: { token_family: family },
+    });
+  }
+  private refreshSecret() {
+    const secret = process.env.JWT_REFRESH_SECRET;
+    if (!secret) throw new Error("JWT_REFRESH_SECRET is required");
+    return secret;
+  }
+  private devCode(code?: string) {
+    return process.env.ENABLE_DEV_INBOX === "true" && code
+      ? { development_code: code }
+      : {};
+  }
 }

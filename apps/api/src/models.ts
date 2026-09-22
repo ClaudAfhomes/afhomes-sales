@@ -1,45 +1,500 @@
-import {Schema,type SchemaDefinition} from 'mongoose';
-const opts={timestamps:{createdAt:'created_at',updatedAt:'updated_at'},versionKey:false} as const;
-const s=(definition:SchemaDefinition)=>new Schema(definition,opts);
-export class Country{code!:string;name!:string;default_currency_code!:string;default_locale!:string}
-export class Currency{code!:string;name!:string;minor_units!:number}
-export class Branch{branch_public_id!:string;name!:string;country_code!:string;currency_code!:string;timezone!:string;is_active!:boolean}
-export class Tier{tier_code!:string;name!:string;rank!:number;duration_value!:number;duration_unit!:string;is_active!:boolean}
-export class Benefit{benefit_code!:string;name!:string;tier_codes!:string[];is_active!:boolean}
-export class ProductService{product_code!:string;name!:string;kind!:string;currency_code!:string;unit_amount_minor!:number;branch_ids!:string[];is_active!:boolean}
-export class User{public_id!:string;email_normalized!:string;display_name!:string;password_hash!:string;roles!:string[];is_verified!:boolean;is_active!:boolean}
-export class AuthSession{session_public_id!:string;user_id!:string;refresh_token_hash!:string;token_family!:string;device_name?:string;user_agent?:string;ip_address?:string;expires_at!:Date;last_used_at!:Date;revoked_at?:Date;replaced_by?:string}
-export class VerificationChallenge{challenge_public_id!:string;user_id!:string;purpose!:string;code_hash!:string;expires_at!:Date;attempts!:number;used_at?:Date}
-export class SecurityEvent{event_public_id!:string;actor_id?:string;event_type!:string;severity!:string;ip_address?:string;metadata!:Record<string,unknown>}
-export class RateLimitBucket{bucket_key!:string;count!:number;expires_at!:Date}
-export class Membership{membership_public_id!:string;customer_id!:string;tier_code!:string;status!:string;starts_at!:Date;ends_at!:Date;points_balance!:number}
-export class VipCard{card_public_id!:string;customer_id?:string;membership_id?:string;pending_tier_code?:string;printed_qr_token!:string;nfc_token!:string;member_code!:string;status!:string;is_blocked!:boolean;replaced_by?:string;replaces_card?:string;issued_at?:Date;sold_at?:Date;activated_at?:Date;expires_at?:Date;activation_code_hash?:string;activation_expires_at?:Date;activation_attempts!:number;activation_used!:boolean}
-export class TransactionHeader{transaction_public_id!:string;idempotency_key!:string;branch_id!:string;customer_id!:string;membership_id!:string;type!:string;amount_minor!:number;currency_code!:string;points_earned!:number;points_redeemed!:number;status!:string;transaction_at!:Date;reversed_transaction_id?:string}
-export class TransactionItem{transaction_id!:string;line_no!:number;product_code!:string;description!:string;quantity!:number;unit_amount_minor!:number;line_amount_minor!:number}
-export class PointsLedger{ledger_public_id!:string;membership_id!:string;transaction_id!:string;points_delta!:number;balance_after!:number;entry_type!:string}
-export class AuditLog{actor_id!:string;action!:string;entity_type!:string;entity_id!:string;request_id!:string;metadata!:Record<string,unknown>}
-export class SupportTicketHeader{ticket_public_id!:string;customer_id!:string;status!:string;subject!:string;priority!:string;assigned_to?:string;closed_at?:Date}
-export class SupportTicketMessage{ticket_id!:string;author_id!:string;body!:string;is_internal!:boolean}
-export class Notification{event_key?:string;recipient_id!:string;channel!:string;category!:string;title!:string;message!:string;status!:string;read_at?:Date;sent_at?:Date;created_at!:Date}
-export const schemas={
- Country:s({code:{type:String,required:true,unique:true,index:true},name:{type:String,required:true},default_currency_code:{type:String,required:true},default_locale:{type:String,required:true}}),
- Currency:s({code:{type:String,required:true,unique:true},name:{type:String,required:true},minor_units:{type:Number,required:true}}),
- Branch:s({branch_public_id:{type:String,required:true,unique:true,index:true},name:{type:String,required:true},country_code:{type:String,required:true},currency_code:{type:String,required:true},timezone:{type:String,required:true},is_active:{type:Boolean,default:true}}),
- Tier:s({tier_code:{type:String,required:true,unique:true},name:{type:String,required:true},rank:{type:Number,required:true},duration_value:{type:Number,required:true},duration_unit:{type:String,required:true},is_active:{type:Boolean,default:true}}),
- Benefit:s({benefit_code:{type:String,required:true,unique:true},name:{type:String,required:true},tier_codes:{type:[String],default:[]},is_active:{type:Boolean,default:true}}),
- ProductService:s({product_code:{type:String,required:true,unique:true,index:true},name:{type:String,required:true},kind:{type:String,required:true,enum:['PRODUCT','SERVICE']},currency_code:{type:String,required:true},unit_amount_minor:{type:Number,required:true,min:0},branch_ids:{type:[String],default:[]},is_active:{type:Boolean,default:true,index:true}}),
- User:s({public_id:{type:String,required:true,unique:true,index:true},email_normalized:{type:String,required:true,unique:true,index:true},display_name:{type:String,required:true},password_hash:{type:String,required:true},roles:{type:[String],default:[]},is_verified:{type:Boolean,default:false},is_active:{type:Boolean,default:true}}),
- AuthSession:s({session_public_id:{type:String,required:true,unique:true,index:true},user_id:{type:String,required:true,index:true},refresh_token_hash:{type:String,required:true,unique:true},token_family:{type:String,required:true,index:true},device_name:String,user_agent:String,ip_address:String,expires_at:{type:Date,required:true,index:true},last_used_at:{type:Date,required:true},revoked_at:Date,replaced_by:String}),
- VerificationChallenge:s({challenge_public_id:{type:String,required:true,unique:true,index:true},user_id:{type:String,required:true,index:true},purpose:{type:String,required:true,index:true},code_hash:{type:String,required:true},expires_at:{type:Date,required:true,index:true},attempts:{type:Number,default:0},used_at:Date}),
- SecurityEvent:s({event_public_id:{type:String,required:true,unique:true,index:true},actor_id:{type:String,index:true},event_type:{type:String,required:true,index:true},severity:{type:String,required:true},ip_address:String,metadata:{type:Schema.Types.Mixed,default:{}}}),
- RateLimitBucket:s({bucket_key:{type:String,required:true,unique:true,index:true},count:{type:Number,default:0},expires_at:{type:Date,required:true,index:{expireAfterSeconds:0}}}),
- Membership:s({membership_public_id:{type:String,required:true,unique:true,index:true},customer_id:{type:String,required:true,index:true},tier_code:{type:String,required:true},status:{type:String,required:true,index:true},starts_at:{type:Date,required:true},ends_at:{type:Date,required:true,index:true},points_balance:{type:Number,default:0,min:0}}),
- VipCard:s({card_public_id:{type:String,required:true,unique:true,index:true},customer_id:{type:String,index:true,sparse:true},membership_id:{type:String,index:true,sparse:true},pending_tier_code:String,printed_qr_token:{type:String,required:true,unique:true,index:true},nfc_token:{type:String,required:true,unique:true,index:true},member_code:{type:String,required:true,unique:true,index:true},status:{type:String,required:true,index:true},is_blocked:{type:Boolean,default:false},replaced_by:String,replaces_card:String,issued_at:Date,sold_at:Date,activated_at:Date,expires_at:Date,activation_code_hash:String,activation_expires_at:Date,activation_attempts:{type:Number,default:0},activation_used:{type:Boolean,default:false}}),
- TransactionHeader:s({transaction_public_id:{type:String,required:true,unique:true,index:true},idempotency_key:{type:String,required:true,unique:true,index:true},branch_id:{type:String,required:true,index:true},customer_id:{type:String,required:true,index:true},membership_id:{type:String,required:true},type:{type:String,required:true},amount_minor:{type:Number,required:true,min:0},currency_code:{type:String,required:true},points_earned:{type:Number,default:0},points_redeemed:{type:Number,default:0},status:{type:String,required:true},transaction_at:{type:Date,required:true,index:true},reversed_transaction_id:{type:String,unique:true,sparse:true}}),
- TransactionItem:s({transaction_id:{type:String,required:true,index:true},line_no:{type:Number,required:true},product_code:{type:String,required:true},description:{type:String,required:true},quantity:{type:Number,required:true,min:1},unit_amount_minor:{type:Number,required:true,min:0},line_amount_minor:{type:Number,required:true,min:0}}),
- PointsLedger:s({ledger_public_id:{type:String,required:true,unique:true,index:true},membership_id:{type:String,required:true,index:true},transaction_id:{type:String,required:true},points_delta:{type:Number,required:true},balance_after:{type:Number,required:true,min:0},entry_type:{type:String,required:true}}),
- AuditLog:s({actor_id:{type:String,index:true},action:{type:String,required:true},entity_type:{type:String,required:true},entity_id:{type:String,required:true},request_id:{type:String,required:true},metadata:{type:Schema.Types.Mixed,default:{}}}),
- SupportTicketHeader:s({ticket_public_id:{type:String,required:true,unique:true,index:true},customer_id:{type:String,required:true,index:true},status:{type:String,required:true,index:true},subject:{type:String,required:true},priority:{type:String,required:true},assigned_to:String,closed_at:Date}),
- SupportTicketMessage:s({ticket_id:{type:String,required:true,index:true},author_id:{type:String,required:true},body:{type:String,required:true},is_internal:{type:Boolean,default:false}}),
- Notification:s({event_key:{type:String,unique:true,sparse:true,index:true},recipient_id:{type:String,required:true,index:true},channel:{type:String,required:true},category:{type:String,required:true},title:{type:String,required:true},message:{type:String,required:true},status:{type:String,default:'PENDING'},read_at:Date,sent_at:Date})
+import { Schema, type SchemaDefinition } from "mongoose";
+const opts = {
+  timestamps: { createdAt: "created_at", updatedAt: "updated_at" },
+  versionKey: false,
+} as const;
+const s = (definition: SchemaDefinition) => new Schema(definition, opts);
+export class Country {
+  code!: string;
+  name!: string;
+  default_currency_code!: string;
+  default_locale!: string;
+}
+export class Currency {
+  code!: string;
+  name!: string;
+  minor_units!: number;
+}
+export class Branch {
+  branch_public_id!: string;
+  name!: string;
+  country_code!: string;
+  currency_code!: string;
+  timezone!: string;
+  is_active!: boolean;
+}
+export class Tier {
+  tier_code!: string;
+  name!: string;
+  rank!: number;
+  duration_value!: number;
+  duration_unit!: string;
+  is_active!: boolean;
+}
+export class Benefit {
+  benefit_code!: string;
+  name!: string;
+  tier_codes!: string[];
+  is_active!: boolean;
+}
+export class ProductService {
+  product_code!: string;
+  name!: string;
+  kind!: string;
+  currency_code!: string;
+  unit_amount_minor!: number;
+  branch_ids!: string[];
+  is_active!: boolean;
+}
+export class RewardRule {
+  rule_code!: string;
+  name!: string;
+  branch_ids!: string[];
+  tier_codes!: string[];
+  points_per_amount_minor!: number;
+  minimum_spend_minor!: number;
+  max_points_per_transaction!: number;
+  step_up_amount_minor!: number;
+  is_active!: boolean;
+}
+export class User {
+  public_id!: string;
+  email_normalized!: string;
+  display_name!: string;
+  password_hash!: string;
+  roles!: string[];
+  branch_ids!: string[];
+  is_verified!: boolean;
+  is_active!: boolean;
+}
+export class AuthSession {
+  session_public_id!: string;
+  user_id!: string;
+  refresh_token_hash!: string;
+  token_family!: string;
+  device_name?: string;
+  user_agent?: string;
+  ip_address?: string;
+  expires_at!: Date;
+  last_used_at!: Date;
+  revoked_at?: Date;
+  replaced_by?: string;
+}
+export class VerificationChallenge {
+  challenge_public_id!: string;
+  user_id!: string;
+  purpose!: string;
+  code_hash!: string;
+  expires_at!: Date;
+  attempts!: number;
+  used_at?: Date;
+}
+export class SecurityEvent {
+  event_public_id!: string;
+  actor_id?: string;
+  event_type!: string;
+  severity!: string;
+  ip_address?: string;
+  metadata!: Record<string, unknown>;
+}
+export class RateLimitBucket {
+  bucket_key!: string;
+  count!: number;
+  expires_at!: Date;
+}
+export class DynamicQrUse {
+  token_hash!: string;
+  customer_id!: string;
+  card_public_id!: string;
+  expires_at!: Date;
+  used_at!: Date;
+}
+export class TransactionAuthorization {
+  authorization_public_id!: string;
+  token_hash!: string;
+  customer_id!: string;
+  membership_id!: string;
+  branch_id!: string;
+  points_redeemed!: number;
+  currency_code!: string;
+  transaction_type!: string;
+  status!: string;
+  expires_at!: Date;
+  used_at?: Date;
+}
+export class Membership {
+  membership_public_id!: string;
+  customer_id!: string;
+  tier_code!: string;
+  status!: string;
+  starts_at!: Date;
+  ends_at!: Date;
+  points_balance!: number;
+}
+export class VipCard {
+  card_public_id!: string;
+  customer_id?: string;
+  membership_id?: string;
+  pending_tier_code?: string;
+  printed_qr_token!: string;
+  nfc_token!: string;
+  member_code!: string;
+  status!: string;
+  is_blocked!: boolean;
+  replaced_by?: string;
+  replaces_card?: string;
+  issued_at?: Date;
+  sold_at?: Date;
+  activated_at?: Date;
+  expires_at?: Date;
+  activation_code_hash?: string;
+  activation_expires_at?: Date;
+  activation_attempts!: number;
+  activation_used!: boolean;
+}
+export class TransactionHeader {
+  transaction_public_id!: string;
+  idempotency_key!: string;
+  branch_id!: string;
+  customer_id!: string;
+  membership_id!: string;
+  type!: string;
+  amount_minor!: number;
+  currency_code!: string;
+  points_earned!: number;
+  points_redeemed!: number;
+  status!: string;
+  transaction_at!: Date;
+  reversed_transaction_id?: string;
+}
+export class TransactionItem {
+  transaction_id!: string;
+  line_no!: number;
+  product_code!: string;
+  description!: string;
+  quantity!: number;
+  unit_amount_minor!: number;
+  line_amount_minor!: number;
+}
+export class PointsLedger {
+  ledger_public_id!: string;
+  membership_id!: string;
+  transaction_id!: string;
+  points_delta!: number;
+  balance_after!: number;
+  entry_type!: string;
+}
+export class AuditLog {
+  actor_id!: string;
+  action!: string;
+  entity_type!: string;
+  entity_id!: string;
+  request_id!: string;
+  metadata!: Record<string, unknown>;
+}
+export class SupportTicketHeader {
+  ticket_public_id!: string;
+  customer_id!: string;
+  status!: string;
+  subject!: string;
+  priority!: string;
+  assigned_to?: string;
+  closed_at?: Date;
+}
+export class SupportTicketMessage {
+  ticket_id!: string;
+  author_id!: string;
+  body!: string;
+  is_internal!: boolean;
+}
+export class Notification {
+  event_key?: string;
+  recipient_id!: string;
+  channel!: string;
+  category!: string;
+  title!: string;
+  message!: string;
+  status!: string;
+  read_at?: Date;
+  sent_at?: Date;
+  created_at!: Date;
+}
+export const schemas = {
+  Country: s({
+    code: { type: String, required: true, unique: true, index: true },
+    name: { type: String, required: true },
+    default_currency_code: { type: String, required: true },
+    default_locale: { type: String, required: true },
+  }),
+  Currency: s({
+    code: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    minor_units: { type: Number, required: true },
+  }),
+  Branch: s({
+    branch_public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    name: { type: String, required: true },
+    country_code: { type: String, required: true },
+    currency_code: { type: String, required: true },
+    timezone: { type: String, required: true },
+    is_active: { type: Boolean, default: true },
+  }),
+  Tier: s({
+    tier_code: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    rank: { type: Number, required: true },
+    duration_value: { type: Number, required: true },
+    duration_unit: { type: String, required: true },
+    is_active: { type: Boolean, default: true },
+  }),
+  Benefit: s({
+    benefit_code: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    tier_codes: { type: [String], default: [] },
+    is_active: { type: Boolean, default: true },
+  }),
+  ProductService: s({
+    product_code: { type: String, required: true, unique: true, index: true },
+    name: { type: String, required: true },
+    kind: { type: String, required: true, enum: ["PRODUCT", "SERVICE"] },
+    currency_code: { type: String, required: true },
+    unit_amount_minor: { type: Number, required: true, min: 0 },
+    branch_ids: { type: [String], default: [] },
+    is_active: { type: Boolean, default: true, index: true },
+  }),
+  RewardRule: s({
+    rule_code: { type: String, required: true, unique: true, index: true },
+    name: { type: String, required: true },
+    branch_ids: { type: [String], default: [] },
+    tier_codes: { type: [String], default: [] },
+    points_per_amount_minor: { type: Number, required: true, min: 1 },
+    minimum_spend_minor: { type: Number, default: 0, min: 0 },
+    max_points_per_transaction: { type: Number, default: 0, min: 0 },
+    step_up_amount_minor: { type: Number, default: 0, min: 0 },
+    is_active: { type: Boolean, default: true, index: true },
+  }),
+  User: s({
+    public_id: { type: String, required: true, unique: true, index: true },
+    email_normalized: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    display_name: { type: String, required: true },
+    password_hash: { type: String, required: true },
+    roles: { type: [String], default: [] },
+    branch_ids: { type: [String], default: [] },
+    is_verified: { type: Boolean, default: false },
+    is_active: { type: Boolean, default: true },
+  }),
+  AuthSession: s({
+    session_public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    user_id: { type: String, required: true, index: true },
+    refresh_token_hash: { type: String, required: true, unique: true },
+    token_family: { type: String, required: true, index: true },
+    device_name: String,
+    user_agent: String,
+    ip_address: String,
+    expires_at: { type: Date, required: true, index: true },
+    last_used_at: { type: Date, required: true },
+    revoked_at: Date,
+    replaced_by: String,
+  }),
+  VerificationChallenge: s({
+    challenge_public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    user_id: { type: String, required: true, index: true },
+    purpose: { type: String, required: true, index: true },
+    code_hash: { type: String, required: true },
+    expires_at: { type: Date, required: true, index: true },
+    attempts: { type: Number, default: 0 },
+    used_at: Date,
+  }),
+  SecurityEvent: s({
+    event_public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    actor_id: { type: String, index: true },
+    event_type: { type: String, required: true, index: true },
+    severity: { type: String, required: true },
+    ip_address: String,
+    metadata: { type: Schema.Types.Mixed, default: {} },
+  }),
+  RateLimitBucket: s({
+    bucket_key: { type: String, required: true, unique: true, index: true },
+    count: { type: Number, default: 0 },
+    expires_at: {
+      type: Date,
+      required: true,
+      index: { expireAfterSeconds: 0 },
+    },
+  }),
+  DynamicQrUse: s({
+    token_hash: { type: String, required: true, unique: true, index: true },
+    customer_id: { type: String, required: true, index: true },
+    card_public_id: { type: String, required: true },
+    expires_at: {
+      type: Date,
+      required: true,
+      index: { expireAfterSeconds: 0 },
+    },
+    used_at: { type: Date, required: true },
+  }),
+  TransactionAuthorization: s({
+    authorization_public_id: { type: String, required: true, unique: true, index: true },
+    token_hash: { type: String, required: true, unique: true, index: true },
+    customer_id: { type: String, required: true, index: true },
+    membership_id: { type: String, required: true, index: true },
+    branch_id: { type: String, required: true, index: true },
+    points_redeemed: { type: Number, required: true, min: 0 },
+    currency_code: { type: String, required: true },
+    transaction_type: { type: String, required: true },
+    status: { type: String, required: true, enum: ["APPROVED", "DECLINED", "USED"], index: true },
+    expires_at: { type: Date, required: true, index: true },
+    used_at: Date,
+  }),
+  Membership: s({
+    membership_public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    customer_id: { type: String, required: true, index: true },
+    tier_code: { type: String, required: true },
+    status: { type: String, required: true, index: true },
+    starts_at: { type: Date, required: true },
+    ends_at: { type: Date, required: true, index: true },
+    points_balance: { type: Number, default: 0, min: 0 },
+  }),
+  VipCard: s({
+    card_public_id: { type: String, required: true, unique: true, index: true },
+    customer_id: { type: String, index: true, sparse: true },
+    membership_id: { type: String, index: true, sparse: true },
+    pending_tier_code: String,
+    printed_qr_token: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    nfc_token: { type: String, required: true, unique: true, index: true },
+    member_code: { type: String, required: true, unique: true, index: true },
+    status: { type: String, required: true, index: true },
+    is_blocked: { type: Boolean, default: false },
+    replaced_by: String,
+    replaces_card: String,
+    issued_at: Date,
+    sold_at: Date,
+    activated_at: Date,
+    expires_at: Date,
+    activation_code_hash: String,
+    activation_expires_at: Date,
+    activation_attempts: { type: Number, default: 0 },
+    activation_used: { type: Boolean, default: false },
+  }),
+  TransactionHeader: s({
+    transaction_public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    idempotency_key: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    branch_id: { type: String, required: true, index: true },
+    customer_id: { type: String, required: true, index: true },
+    membership_id: { type: String, required: true },
+    type: { type: String, required: true },
+    amount_minor: { type: Number, required: true, min: 0 },
+    currency_code: { type: String, required: true },
+    points_earned: { type: Number, default: 0 },
+    points_redeemed: { type: Number, default: 0 },
+    status: { type: String, required: true },
+    transaction_at: { type: Date, required: true, index: true },
+    reversed_transaction_id: { type: String, unique: true, sparse: true },
+  }),
+  TransactionItem: s({
+    transaction_id: { type: String, required: true, index: true },
+    line_no: { type: Number, required: true },
+    product_code: { type: String, required: true },
+    description: { type: String, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    unit_amount_minor: { type: Number, required: true, min: 0 },
+    line_amount_minor: { type: Number, required: true, min: 0 },
+  }),
+  PointsLedger: s({
+    ledger_public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    membership_id: { type: String, required: true, index: true },
+    transaction_id: { type: String, required: true },
+    points_delta: { type: Number, required: true },
+    balance_after: { type: Number, required: true, min: 0 },
+    entry_type: { type: String, required: true },
+  }),
+  AuditLog: s({
+    actor_id: { type: String, index: true },
+    action: { type: String, required: true },
+    entity_type: { type: String, required: true },
+    entity_id: { type: String, required: true },
+    request_id: { type: String, required: true },
+    metadata: { type: Schema.Types.Mixed, default: {} },
+  }),
+  SupportTicketHeader: s({
+    ticket_public_id: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+    customer_id: { type: String, required: true, index: true },
+    status: { type: String, required: true, index: true },
+    subject: { type: String, required: true },
+    priority: { type: String, required: true },
+    assigned_to: String,
+    closed_at: Date,
+  }),
+  SupportTicketMessage: s({
+    ticket_id: { type: String, required: true, index: true },
+    author_id: { type: String, required: true },
+    body: { type: String, required: true },
+    is_internal: { type: Boolean, default: false },
+  }),
+  Notification: s({
+    event_key: { type: String, unique: true, sparse: true, index: true },
+    recipient_id: { type: String, required: true, index: true },
+    channel: { type: String, required: true },
+    category: { type: String, required: true },
+    title: { type: String, required: true },
+    message: { type: String, required: true },
+    status: { type: String, default: "PENDING" },
+    read_at: Date,
+    sent_at: Date,
+  }),
 };

@@ -1,39 +1,392 @@
-import {Body,Controller,Get,Param,Patch,Post,Query,Req,UnauthorizedException} from '@nestjs/common'; import {ApiBearerAuth,ApiTags} from '@nestjs/swagger'; import {AuthService} from './auth.service'; import {BusinessService} from './business.service'; import {CurrentUser,Public,RateLimit,Roles,type AuthenticatedUser} from './auth.decorators'; import {ActivateCardDto,CardActionDto,CreateTicketDto,CreateTransactionDto,ForgotPasswordDto,LoginDto,MemberLookupDto,RefreshTokenDto,RegisterDto,ReplaceCardDto,ReplyTicketDto,ResetPasswordDto,ReverseTransactionDto,SellCardDto,UpdateTicketDto,UpsertProductDto,UpsertTierDto,VerifyEmailDto} from './dto';
-const STAFF=['SUPER_ADMIN','ADMIN','MANAGER','CASHIER','CUSTOMER_SERVICE'];
-@Controller() export class AppController{constructor(private auth:AuthService,private business:BusinessService){}
- @Public() @Get('health') health(){return this.business.health()}
- @Public() @ApiTags('automation') @Get('api/v1/automation/daily') dailyAutomation(@Req() req:any){const secret=process.env.CRON_SECRET;if(!secret||req.headers.authorization!==`Bearer ${secret}`)throw new UnauthorizedException();return this.business.runDailyAutomation()}
- @Public() @RateLimit({limit:5,windowMs:600000,eventType:'REGISTRATION_RATE_LIMITED'}) @ApiTags('auth') @Post('api/v1/auth/register') register(@Body() d:RegisterDto,@Req() req:any){return this.auth.register(d.email,d.display_name,d.password,{device_name:d.device_name,user_agent:req.headers['user-agent'],ip_address:req.ip})}
- @Public() @RateLimit({limit:5,windowMs:600000,eventType:'OTP_RATE_LIMITED'}) @ApiTags('auth') @Post('api/v1/auth/verify-email') verify(@Body() d:VerifyEmailDto,@Req() req:any){return this.auth.verifyEmail(d.email,d.code,{device_name:d.device_name,user_agent:req.headers['user-agent'],ip_address:req.ip})}
- @Public() @RateLimit({limit:5,windowMs:60000,eventType:'LOGIN_RATE_LIMITED'}) @ApiTags('auth') @Post('api/v1/auth/login') login(@Body() d:LoginDto,@Req() req:any){return this.auth.login(d.email,d.password,{user_agent:req.headers['user-agent'],ip_address:req.ip})}
- @Public() @ApiTags('auth') @Post('api/v1/auth/refresh') refresh(@Body() d:RefreshTokenDto,@Req() req:any){return this.auth.refresh(d.refresh_token,{device_name:d.device_name,user_agent:req.headers['user-agent'],ip_address:req.ip})}
- @Public() @ApiTags('auth') @Post('api/v1/auth/logout') logout(@Body() d:RefreshTokenDto){return this.auth.logout(d.refresh_token)}
- @ApiBearerAuth() @Roles('CUSTOMER','SUPER_ADMIN','ADMIN','MANAGER','CASHIER','CUSTOMER_SERVICE') @ApiTags('auth') @Post('api/v1/auth/logout-all') logoutAll(@CurrentUser() user:AuthenticatedUser){return this.auth.logoutAll(user.sub)}
- @Public() @RateLimit({limit:5,windowMs:600000,eventType:'OTP_RATE_LIMITED'}) @ApiTags('auth') @Post('api/v1/auth/forgot-password') forgot(@Body() d:ForgotPasswordDto){return this.auth.forgotPassword(d.email)}
- @Public() @RateLimit({limit:5,windowMs:600000,eventType:'PASSWORD_RESET_RATE_LIMITED'}) @ApiTags('auth') @Post('api/v1/auth/reset-password') reset(@Body() d:ResetPasswordDto){return this.auth.resetPassword(d.email,d.code,d.new_password)}
- @ApiBearerAuth() @Roles(...STAFF) @ApiTags('operations') @Get('api/v1/dashboard') dashboard(){return this.business.dashboard()}
- @ApiBearerAuth() @Roles(...STAFF) @ApiTags('cards') @Get('api/v1/cards') cards(){return this.business.cardsList()}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','MANAGER','CASHIER') @ApiTags('cards') @Post('api/v1/cards/sell') sell(@Body() d:SellCardDto,@CurrentUser() user:AuthenticatedUser){return this.business.sell(d,user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER') @RateLimit({limit:10,windowMs:600000,eventType:'ACTIVATION_RATE_LIMITED'}) @ApiTags('cards') @Post('api/v1/cards/activate') activate(@Body() d:ActivateCardDto,@CurrentUser() user:AuthenticatedUser){return this.business.activate(d,user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER') @ApiTags('cards') @Post('api/v1/cards/report-lost') reportLost(@Body() d:CardActionDto,@CurrentUser() user:AuthenticatedUser){return this.business.reportLostCard(d,user.sub)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','MANAGER') @ApiTags('cards') @Post('api/v1/cards/block') blockCard(@Body() d:CardActionDto,@CurrentUser() user:AuthenticatedUser){return this.business.blockCard(d,user.sub)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','MANAGER') @ApiTags('cards') @Post('api/v1/cards/replace') replaceCard(@Body() d:ReplaceCardDto,@CurrentUser() user:AuthenticatedUser){return this.business.replaceCard(d,user.sub)}
- @ApiBearerAuth() @Roles(...STAFF) @RateLimit({limit:30,windowMs:60000,eventType:'MEMBER_LOOKUP_RATE_LIMITED'}) @ApiTags('members') @Post('api/v1/members/lookup') lookup(@Body() d:MemberLookupDto,@CurrentUser() user:AuthenticatedUser){return this.business.lookupMember(d,user.sub)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','MANAGER','CASHIER') @RateLimit({limit:30,windowMs:60000,eventType:'TRANSACTION_RATE_LIMITED'}) @ApiTags('transactions') @Post('api/v1/transactions') transact(@Body() d:CreateTransactionDto,@CurrentUser() user:AuthenticatedUser){return this.business.transact(d,user.sub)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','MANAGER') @ApiTags('transactions') @Post('api/v1/transactions/reverse') reverse(@Body() d:ReverseTransactionDto,@CurrentUser() user:AuthenticatedUser){return this.business.reverseTransaction(d,user.sub)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','MANAGER') @ApiTags('reports') @Get('api/v1/reports/summary') report(){return this.business.report()}
- @ApiBearerAuth() @Roles(...STAFF) @ApiTags('catalog') @Get('api/v1/products') products(@Query('branch_id') branchId?:string){return this.business.listProducts(branchId)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','MANAGER') @ApiTags('catalog') @Post('api/v1/products') upsertProduct(@Body() d:UpsertProductDto,@CurrentUser() user:AuthenticatedUser){return this.business.upsertProduct(d,user.sub)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','MANAGER') @ApiTags('configuration') @Get('api/v1/configuration') configuration(){return this.business.configuration()}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN') @ApiTags('configuration') @Post('api/v1/tiers') upsertTier(@Body() d:UpsertTierDto,@CurrentUser() user:AuthenticatedUser){return this.business.upsertTier(d,user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER') @ApiTags('customer') @Get('api/v1/customer/me') customerMe(@CurrentUser() user:AuthenticatedUser){return this.business.customerHome(user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER') @RateLimit({limit:20,windowMs:60000,eventType:'DYNAMIC_QR_RATE_LIMITED'}) @ApiTags('customer') @Get('api/v1/customer/dynamic-qr') customerDynamicQr(@CurrentUser() user:AuthenticatedUser){return this.business.customerDynamicQr(user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER') @ApiTags('customer') @Get('api/v1/customer/transactions') customerTransactions(@CurrentUser() user:AuthenticatedUser){return this.business.customerTransactions(user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER') @ApiTags('customer') @Get('api/v1/customer/notifications') customerNotifications(@CurrentUser() user:AuthenticatedUser){return this.business.customerNotifications(user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER') @RateLimit({limit:120,windowMs:60000,eventType:'REALTIME_SYNC_RATE_LIMITED'}) @ApiTags('customer') @Get('api/v1/customer/events') customerEvents(@CurrentUser() user:AuthenticatedUser,@Query('after') after?:string){return this.business.customerEvents(user.sub,after)}
- @ApiBearerAuth() @Roles('CUSTOMER') @ApiTags('support') @Post('api/v1/support/tickets') ticket(@Body() d:CreateTicketDto,@CurrentUser() user:AuthenticatedUser){return this.business.createTicket(d,user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER') @ApiTags('support') @Get('api/v1/support/tickets/mine') myTickets(@CurrentUser() user:AuthenticatedUser){return this.business.listCustomerTickets(user.sub)}
- @ApiBearerAuth() @Roles('CUSTOMER','SUPER_ADMIN','ADMIN','CUSTOMER_SERVICE') @ApiTags('support') @Get('api/v1/support/tickets/:ticketId') ticketDetails(@Param('ticketId') ticketId:string,@CurrentUser() user:AuthenticatedUser){return this.business.ticketDetails(ticketId,user)}
- @ApiBearerAuth() @Roles('CUSTOMER','SUPER_ADMIN','ADMIN','CUSTOMER_SERVICE') @ApiTags('support') @Post('api/v1/support/tickets/:ticketId/messages') replyTicket(@Param('ticketId') ticketId:string,@Body() d:ReplyTicketDto,@CurrentUser() user:AuthenticatedUser){return this.business.replyTicket(ticketId,d,user)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','CUSTOMER_SERVICE') @ApiTags('support') @Patch('api/v1/support/tickets/:ticketId') updateTicket(@Param('ticketId') ticketId:string,@Body() d:UpdateTicketDto,@CurrentUser() user:AuthenticatedUser){return this.business.updateTicket(ticketId,d,user.sub)}
- @ApiBearerAuth() @Roles('SUPER_ADMIN','ADMIN','CUSTOMER_SERVICE') @ApiTags('support') @Get('api/v1/support/tickets') tickets(){return this.business.listTickets()}}
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
+import { AuthService } from "./auth.service";
+import { BusinessService } from "./business.service";
+import {
+  CurrentUser,
+  Public,
+  RateLimit,
+  Roles,
+  type AuthenticatedUser,
+} from "./auth.decorators";
+import {
+  ActivateCardDto,
+  CardActionDto,
+  CreateTicketDto,
+  CreateTransactionDto,
+  ForgotPasswordDto,
+  LoginDto,
+  MemberLookupDto,
+  RefreshTokenDto,
+  RegisterDto,
+  ReplaceCardDto,
+  ReplyTicketDto,
+  ResetPasswordDto,
+  ReverseTransactionDto,
+  SellCardDto,
+  StepUpDto,
+  UpdateTicketDto,
+  UpsertProductDto,
+  UpsertTierDto,
+  VerifyEmailDto,
+} from "./dto";
+const STAFF = [
+  "SUPER_ADMIN",
+  "ADMIN",
+  "MANAGER",
+  "CASHIER",
+  "CUSTOMER_SERVICE",
+];
+@Controller()
+export class AppController {
+  constructor(
+    private auth: AuthService,
+    private business: BusinessService,
+  ) {}
+  @Public() @Get("health") health() {
+    return this.business.health();
+  }
+  @Public()
+  @ApiTags("automation")
+  @Get("api/v1/automation/daily")
+  dailyAutomation(@Req() req: any) {
+    const secret = process.env.CRON_SECRET;
+    if (!secret || req.headers.authorization !== `Bearer ${secret}`)
+      throw new UnauthorizedException();
+    return this.business.runDailyAutomation();
+  }
+  @Public()
+  @RateLimit({
+    limit: 5,
+    windowMs: 600000,
+    eventType: "REGISTRATION_RATE_LIMITED",
+  })
+  @ApiTags("auth")
+  @Post("api/v1/auth/register")
+  register(@Body() d: RegisterDto, @Req() req: any) {
+    return this.auth.register(d.email, d.display_name, d.password, {
+      device_name: d.device_name,
+      user_agent: req.headers["user-agent"],
+      ip_address: req.ip,
+    });
+  }
+  @Public()
+  @RateLimit({ limit: 5, windowMs: 600000, eventType: "OTP_RATE_LIMITED" })
+  @ApiTags("auth")
+  @Post("api/v1/auth/verify-email")
+  verify(@Body() d: VerifyEmailDto, @Req() req: any) {
+    return this.auth.verifyEmail(d.email, d.code, {
+      device_name: d.device_name,
+      user_agent: req.headers["user-agent"],
+      ip_address: req.ip,
+    });
+  }
+  @Public()
+  @RateLimit({ limit: 5, windowMs: 60000, eventType: "LOGIN_RATE_LIMITED" })
+  @ApiTags("auth")
+  @Post("api/v1/auth/login")
+  login(@Body() d: LoginDto, @Req() req: any) {
+    return this.auth.login(d.email, d.password, {
+      user_agent: req.headers["user-agent"],
+      ip_address: req.ip,
+    });
+  }
+  @Public() @ApiTags("auth") @Post("api/v1/auth/refresh") refresh(
+    @Body() d: RefreshTokenDto,
+    @Req() req: any,
+  ) {
+    return this.auth.refresh(d.refresh_token, {
+      device_name: d.device_name,
+      user_agent: req.headers["user-agent"],
+      ip_address: req.ip,
+    });
+  }
+  @Public() @ApiTags("auth") @Post("api/v1/auth/logout") logout(
+    @Body() d: RefreshTokenDto,
+  ) {
+    return this.auth.logout(d.refresh_token);
+  }
+  @ApiBearerAuth()
+  @Roles(
+    "CUSTOMER",
+    "SUPER_ADMIN",
+    "ADMIN",
+    "MANAGER",
+    "CASHIER",
+    "CUSTOMER_SERVICE",
+  )
+  @ApiTags("auth")
+  @Post("api/v1/auth/logout-all")
+  logoutAll(@CurrentUser() user: AuthenticatedUser) {
+    return this.auth.logoutAll(user.sub);
+  }
+  @Public()
+  @RateLimit({ limit: 5, windowMs: 600000, eventType: "OTP_RATE_LIMITED" })
+  @ApiTags("auth")
+  @Post("api/v1/auth/forgot-password")
+  forgot(@Body() d: ForgotPasswordDto) {
+    return this.auth.forgotPassword(d.email);
+  }
+  @Public()
+  @RateLimit({
+    limit: 5,
+    windowMs: 600000,
+    eventType: "PASSWORD_RESET_RATE_LIMITED",
+  })
+  @ApiTags("auth")
+  @Post("api/v1/auth/reset-password")
+  reset(@Body() d: ResetPasswordDto) {
+    return this.auth.resetPassword(d.email, d.code, d.new_password);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @RateLimit({ limit: 5, windowMs: 60000, eventType: "STEP_UP_RATE_LIMITED" })
+  @ApiTags("auth")
+  @Post("api/v1/auth/step-up")
+  stepUp(@Body() d: StepUpDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.auth.stepUp(user.sub, d);
+  }
+  @ApiBearerAuth()
+  @Roles(...STAFF)
+  @ApiTags("operations")
+  @Get("api/v1/dashboard")
+  dashboard() {
+    return this.business.dashboard();
+  }
+  @ApiBearerAuth()
+  @Roles(...STAFF)
+  @ApiTags("cards")
+  @Get("api/v1/cards")
+  cards() {
+    return this.business.cardsList();
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "MANAGER", "CASHIER")
+  @ApiTags("cards")
+  @Post("api/v1/cards/sell")
+  sell(@Body() d: SellCardDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.business.sell(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @RateLimit({
+    limit: 10,
+    windowMs: 600000,
+    eventType: "ACTIVATION_RATE_LIMITED",
+  })
+  @ApiTags("cards")
+  @Post("api/v1/cards/activate")
+  activate(@Body() d: ActivateCardDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.business.activate(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @ApiTags("cards")
+  @Post("api/v1/cards/report-lost")
+  reportLost(@Body() d: CardActionDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.business.reportLostCard(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "MANAGER")
+  @ApiTags("cards")
+  @Post("api/v1/cards/block")
+  blockCard(@Body() d: CardActionDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.business.blockCard(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "MANAGER")
+  @ApiTags("cards")
+  @Post("api/v1/cards/replace")
+  replaceCard(
+    @Body() d: ReplaceCardDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.business.replaceCard(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles(...STAFF)
+  @RateLimit({
+    limit: 30,
+    windowMs: 60000,
+    eventType: "MEMBER_LOOKUP_RATE_LIMITED",
+  })
+  @ApiTags("members")
+  @Post("api/v1/members/lookup")
+  lookup(@Body() d: MemberLookupDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.business.lookupMember(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "MANAGER", "CASHIER")
+  @RateLimit({
+    limit: 30,
+    windowMs: 60000,
+    eventType: "TRANSACTION_RATE_LIMITED",
+  })
+  @ApiTags("transactions")
+  @Post("api/v1/transactions")
+  transact(
+    @Body() d: CreateTransactionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.business.transact(d, user);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "MANAGER")
+  @ApiTags("transactions")
+  @Post("api/v1/transactions/reverse")
+  reverse(
+    @Body() d: ReverseTransactionDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.business.reverseTransaction(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "MANAGER")
+  @ApiTags("reports")
+  @Get("api/v1/reports/summary")
+  report() {
+    return this.business.report();
+  }
+  @ApiBearerAuth()
+  @Roles(...STAFF)
+  @ApiTags("catalog")
+  @Get("api/v1/products")
+  products(@Query("branch_id") branchId?: string) {
+    return this.business.listProducts(branchId);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "MANAGER")
+  @ApiTags("catalog")
+  @Post("api/v1/products")
+  upsertProduct(
+    @Body() d: UpsertProductDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.business.upsertProduct(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "MANAGER")
+  @ApiTags("configuration")
+  @Get("api/v1/configuration")
+  configuration() {
+    return this.business.configuration();
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN")
+  @ApiTags("configuration")
+  @Post("api/v1/tiers")
+  upsertTier(@Body() d: UpsertTierDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.business.upsertTier(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @ApiTags("customer")
+  @Get("api/v1/customer/me")
+  customerMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.business.customerHome(user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @RateLimit({
+    limit: 20,
+    windowMs: 60000,
+    eventType: "DYNAMIC_QR_RATE_LIMITED",
+  })
+  @ApiTags("customer")
+  @Get("api/v1/customer/dynamic-qr")
+  customerDynamicQr(@CurrentUser() user: AuthenticatedUser) {
+    return this.business.customerDynamicQr(user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @ApiTags("customer")
+  @Get("api/v1/customer/transactions")
+  customerTransactions(@CurrentUser() user: AuthenticatedUser) {
+    return this.business.customerTransactions(user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @ApiTags("customer")
+  @Get("api/v1/customer/notifications")
+  customerNotifications(@CurrentUser() user: AuthenticatedUser) {
+    return this.business.customerNotifications(user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @RateLimit({
+    limit: 120,
+    windowMs: 60000,
+    eventType: "REALTIME_SYNC_RATE_LIMITED",
+  })
+  @ApiTags("customer")
+  @Get("api/v1/customer/events")
+  customerEvents(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query("after") after?: string,
+  ) {
+    return this.business.customerEvents(user.sub, after);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @ApiTags("support")
+  @Post("api/v1/support/tickets")
+  ticket(@Body() d: CreateTicketDto, @CurrentUser() user: AuthenticatedUser) {
+    return this.business.createTicket(d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER")
+  @ApiTags("support")
+  @Get("api/v1/support/tickets/mine")
+  myTickets(@CurrentUser() user: AuthenticatedUser) {
+    return this.business.listCustomerTickets(user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER", "SUPER_ADMIN", "ADMIN", "CUSTOMER_SERVICE")
+  @ApiTags("support")
+  @Get("api/v1/support/tickets/:ticketId")
+  ticketDetails(
+    @Param("ticketId") ticketId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.business.ticketDetails(ticketId, user);
+  }
+  @ApiBearerAuth()
+  @Roles("CUSTOMER", "SUPER_ADMIN", "ADMIN", "CUSTOMER_SERVICE")
+  @ApiTags("support")
+  @Post("api/v1/support/tickets/:ticketId/messages")
+  replyTicket(
+    @Param("ticketId") ticketId: string,
+    @Body() d: ReplyTicketDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.business.replyTicket(ticketId, d, user);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "CUSTOMER_SERVICE")
+  @ApiTags("support")
+  @Patch("api/v1/support/tickets/:ticketId")
+  updateTicket(
+    @Param("ticketId") ticketId: string,
+    @Body() d: UpdateTicketDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.business.updateTicket(ticketId, d, user.sub);
+  }
+  @ApiBearerAuth()
+  @Roles("SUPER_ADMIN", "ADMIN", "CUSTOMER_SERVICE")
+  @ApiTags("support")
+  @Get("api/v1/support/tickets")
+  tickets() {
+    return this.business.listTickets();
+  }
+}

@@ -31,6 +31,10 @@ function service() {
     empty as never,
     empty as never,
     empty as never,
+    empty as never,
+    empty as never,
+    empty as never,
+    {} as never,
   );
   return {instance, cards, tiers, memberships, empty};
 }

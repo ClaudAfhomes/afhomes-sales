@@ -13,8 +13,9 @@ function setup(){
  const sessions={create:jest.fn(),findOne:jest.fn(),updateMany:jest.fn()};
  const challenges={create:jest.fn(),findOne:jest.fn(),updateMany:jest.fn()};
  const security={create:jest.fn()};
+ const authorizations={create:jest.fn()};
  const jwt={signAsync:jest.fn(async(payload:Record<string,unknown>)=>payload.type==='refresh'?'refresh-token':'access-token'),verifyAsync:jest.fn()} as unknown as JwtService;
- return{service:new AuthService(users as never,sessions as never,challenges as never,security as never,jwt),users,sessions,challenges,security,jwt};
+ return{service:new AuthService(users as never,sessions as never,challenges as never,security as never,authorizations as never,jwt),users,sessions,challenges,security,authorizations,jwt};
 }
 
 describe('customer authentication',()=>{
